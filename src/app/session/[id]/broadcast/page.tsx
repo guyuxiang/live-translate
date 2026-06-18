@@ -16,17 +16,22 @@ interface TranslationInfo {
   translatorIdentity: string;
   status: string;
   subscriberCount: number;
+  inputTokens: number;
+  outputTokens: number;
 }
+
+const INPUT_PRICE_PER_TOKEN = 0.0000035; // $3.50 / 1M
+const OUTPUT_PRICE_PER_TOKEN = 0.000021;  // $21.00 / 1M
 
 const FLAGS: Record<string, string> = {
   en: "🇺🇸", es: "🇪🇸", fr: "🇫🇷", de: "🇩🇪", it: "🇮🇹",
-  pt: "🇧🇷", ja: "🇯🇵", ko: "🇰🇷", zh: "🇨🇳", ar: "🇸🇦",
+  pt: "🇧🇷", ja: "🇯🇵", ko: "🇰🇷", "zh-CN": "🇨🇳", "zh-TW": "🇹🇼", ar: "🇸🇦",
   hi: "🇮🇳", ru: "🇷🇺", tr: "🇹🇷", nl: "🇳🇱", pl: "🇵🇱", sv: "🇸🇪",
 };
 
 const LANG_NAMES: Record<string, string> = {
   en: "English", es: "Spanish", fr: "French", de: "German", it: "Italian",
-  pt: "Portuguese", ja: "Japanese", ko: "Korean", zh: "Chinese", ar: "Arabic",
+  pt: "Portuguese", ja: "Japanese", ko: "Korean", "zh-CN": "Chinese (Simplified)", "zh-TW": "Chinese (Traditional)", ar: "Arabic",
   hi: "Hindi", ru: "Russian", tr: "Turkish", nl: "Dutch", pl: "Polish", sv: "Swedish",
 };
 
@@ -223,9 +228,28 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
       >
         <span className="label">Share with attendees</span>
         <SessionQRCode url={joinUrl} size={140} />
-        <p className="mono" style={{ wordBreak: "break-all", textAlign: "center" }}>
-          {joinUrl}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <p className="mono" style={{ wordBreak: "break-all", textAlign: "center", margin: 0 }}>
+            {joinUrl}
+          </p>
+          <button
+            onClick={() => navigator.clipboard.writeText(joinUrl)}
+            style={{
+              flexShrink: 0,
+              padding: "4px 10px",
+              fontSize: 12,
+              fontFamily: "var(--font-body)",
+              border: "1px solid var(--border)",
+              borderRadius: 4,
+              background: "var(--bg-elevated)",
+              color: "var(--fg-secondary)",
+              cursor: "pointer",
+            }}
+            title="Copy link"
+          >
+            Copy
+          </button>
+        </div>
       </div>
 
       <hr className="rule" />
@@ -263,21 +287,39 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
         )}
       </div>
 
+      {/* Token Usage */}
+      {translations.length > 0 && (() => {
+      const totalInput = translations.reduce((s, t) => s + t.inputTokens, 0);
+      const totalOutput = translations.reduce((s, t) => s + t.outputTokens, 0);
+      const totalTokens = totalInput + totalOutput;
+      const cost = totalInput * INPUT_PRICE_PER_TOKEN + totalOutput * OUTPUT_PRICE_PER_TOKEN;
+      return (
+        <div style={{ padding: "0 0 28px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
+            <span className="label">Token Usage</span>
+            <span className="mono" style={{ color: "var(--success)", fontWeight: 600 }}>
+              {totalTokens.toLocaleString()} tokens · ~${cost.toFixed(4)}
+            </span>
+          </div>
+        </div>
+      );
+      })()}
+
       <hr className="rule" />
 
       {/* End */}
       <div style={{ paddingTop: 28 }}>
-        <button
-          className="btn-danger"
-          onClick={() => {
-            stopCapture();
-            room.disconnect();
-            window.location.href = "/";
-          }}
-          style={{ width: "100%" }}
-        >
-          End broadcast
-        </button>
+      <button
+        className="btn-danger"
+        onClick={() => {
+          stopCapture();
+          room.disconnect();
+          window.location.href = "/";
+        }}
+        style={{ width: "100%" }}
+      >
+        End broadcast
+      </button>
       </div>
     </div>
   );

@@ -37,6 +37,10 @@ export class TranslationBridge {
   private framesSentToGemini: number = 0;
   private framesReceivedFromGemini: number = 0;
 
+  // Usage tracking
+  public inputTokens: number = 0;
+  public outputTokens: number = 0;
+
   public readonly targetLanguage: string;
   public readonly sessionId: string;
   public readonly identity: string;
@@ -408,6 +412,13 @@ export class TranslationBridge {
       // If turn is complete, advance the segment id
       if (serverContent?.turnComplete) {
         this.transcriptionSegmentId++;
+      }
+
+      // Track token usage from Gemini
+      const usage = serverContent?.usageMetadata || message?.usageMetadata;
+      if (usage) {
+        if (usage.promptTokenCount) this.inputTokens += usage.promptTokenCount;
+        if (usage.responseTokenCount) this.outputTokens += usage.responseTokenCount;
       }
     } catch (error) {
       console.error(

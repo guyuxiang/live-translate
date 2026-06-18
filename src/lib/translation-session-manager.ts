@@ -14,6 +14,8 @@ export interface TranslationInfo {
   translatorIdentity: string;
   status: BridgeStatus;
   subscriberCount: number;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export interface SessionInfo {
@@ -131,6 +133,8 @@ class TranslationSessionManager {
         translatorIdentity: bridge.identity,
         status: bridge.status,
         subscriberCount: bridge.subscriberCount,
+        inputTokens: bridge.inputTokens,
+        outputTokens: bridge.outputTokens,
       });
     }
     return result;
