@@ -6,19 +6,50 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  function openPasswordDialog() {
+    setShowPasswordDialog(true);
+    setPassword("");
+    setPasswordError("");
+  }
+
+  function closePasswordDialog() {
+    setShowPasswordDialog(false);
+    setPassword("");
+    setPasswordError("");
+  }
 
   async function createSession() {
+    if (!password) {
+      setPasswordError("Password is required");
+      return;
+    }
+
     setLoading(true);
+    setPasswordError("");
+
     try {
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizerName: "host" }),
+        body: JSON.stringify({ organizerName: "host", password }),
       });
       const data = await res.json();
+
+      if (!res.ok) {
+        setPasswordError(data.error || "Incorrect password");
+        setLoading(false);
+        return;
+      }
+
+      closePasswordDialog();
       router.push(`/session/${data.sessionId}/broadcast`);
     } catch (err) {
       console.error("Failed to create session:", err);
+      setPasswordError("Network error, please try again");
       setLoading(false);
     }
   }
@@ -44,7 +75,7 @@ export default function Home() {
         <div className="enter-d2">
           <button
             className="btn btn-dark"
-            onClick={createSession}
+            onClick={openPasswordDialog}
             disabled={loading}
             id="create-session-btn"
           >
@@ -101,6 +132,108 @@ export default function Home() {
           Powered by Gemini Live API + LiveKit
         </p>
       </div>
+
+      {/* Password Dialog */}
+      {showPasswordDialog && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "var(--bg)",
+            zIndex: 1000,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closePasswordDialog();
+          }}
+        >
+          <div
+            style={{
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              padding: "40px 32px",
+              minWidth: 340,
+              maxWidth: 400,
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+              Enter Password
+            </h2>
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--fg-tertiary)",
+                marginBottom: 20,
+              }}
+            >
+              A password is required to create a session
+            </p>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordError("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") createSession();
+                if (e.key === "Escape") closePasswordDialog();
+              }}
+              autoFocus
+              style={{
+                display: "block",
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: passwordError
+                  ? "1.5px solid var(--error)"
+                  : "1px solid var(--border)",
+                background: "var(--bg-elevated)",
+                color: "var(--fg)",
+                fontSize: 15,
+                outline: "none",
+                textAlign: "center",
+                marginBottom: passwordError ? 8 : 20,
+              }}
+            />
+            {passwordError && (
+              <p
+                style={{
+                  color: "var(--error)",
+                  fontSize: 13,
+                  margin: "0 0 16px",
+                }}
+              >
+                {passwordError}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                className="btn btn-outline"
+                onClick={closePasswordDialog}
+                disabled={loading}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-dark"
+                onClick={createSession}
+                disabled={loading}
+                style={{ flex: 1 }}
+              >
+                {loading ? "Verifying…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

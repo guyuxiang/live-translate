@@ -2,13 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import TranslationSessionManager from "@/lib/translation-session-manager";
 
+const SESSION_PASSWORD=process.env.SESSION_PASSWORD || "Aa123456!";
+
 // POST /api/sessions — Create a new broadcast session
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const organizerName = body.organizerName || "organizer";
+    const password = body.password || "";
 
-    const sessionId = uuidv4().slice(0, 8); // Short, readable ID
+    if (password !== SESSION_PASSWORD) {
+      return NextResponse.json(
+        { error: "Incorrect password" },
+        { status: 401 }
+      );
+    }
+
+    const sessionId = uuidv4().slice(0, 8);
     const organizerIdentity = `organizer-${organizerName}`;
 
     const manager = TranslationSessionManager.getInstance();
