@@ -24,6 +24,8 @@ export interface SessionInfo {
   organizerIdentity: string;
   name: string;
   createdAt: Date;
+  languageCount?: number;
+  tokenCount?: number;
 }
 
 class TranslationSessionManager {
@@ -56,6 +58,8 @@ class TranslationSessionManager {
       organizerIdentity,
       name: name?.trim() || `Session ${createdAt.toLocaleString()}`,
       createdAt,
+      languageCount: 0,
+      tokenCount: 0,
     };
     this.sessions.set(sessionId, info);
     this.store.saveSession(info);
@@ -75,6 +79,8 @@ class TranslationSessionManager {
       organizerIdentity: persisted.organizerIdentity,
       name: persisted.name,
       createdAt: persisted.createdAt,
+      languageCount: persisted.languageCount,
+      tokenCount: persisted.tokenCount,
     };
     this.sessions.set(sessionId, info);
     return info;
@@ -238,6 +244,8 @@ class TranslationSessionManager {
         organizerIdentity: session.organizerIdentity,
         name: session.name,
         createdAt: session.createdAt,
+        languageCount: session.languageCount,
+        tokenCount: session.tokenCount,
       };
       this.sessions.set(session.sessionId, info);
       return info;

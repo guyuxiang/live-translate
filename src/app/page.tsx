@@ -19,11 +19,37 @@ export default function Home() {
   }>>([]);
 
   useEffect(() => {
-    try {
-      window.setTimeout(() => setRecentSessions(JSON.parse(localStorage.getItem("liveTranslateSessions") || "[]")), 0);
-    } catch {
-      window.setTimeout(() => setRecentSessions([]), 0);
-    }
+    const loadLocalSessions = () => {
+      try {
+        return JSON.parse(localStorage.getItem("liveTranslateSessions") || "[]");
+      } catch {
+        return [];
+      }
+    };
+
+    window.setTimeout(() => setRecentSessions(loadLocalSessions()), 0);
+
+    fetch("/api/sessions")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!Array.isArray(data?.sessions)) return;
+        const persistedSessions = data.sessions.map((session: {
+          sessionId: string;
+          name?: string;
+          createdAt: string;
+          languageCount?: number;
+          tokenCount?: number;
+        }) => ({
+          sessionId: session.sessionId,
+          name: session.name || session.sessionId,
+          createdAt: session.createdAt,
+          languageCount: session.languageCount ?? 0,
+          tokenCount: session.tokenCount ?? 0,
+        }));
+        setRecentSessions(persistedSessions);
+        localStorage.setItem("liveTranslateSessions", JSON.stringify(persistedSessions));
+      })
+      .catch(() => {});
   }, []);
 
   function openPasswordDialog() {
