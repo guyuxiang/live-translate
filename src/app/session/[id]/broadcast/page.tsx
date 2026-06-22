@@ -480,14 +480,15 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
       <div style={{ paddingTop: 28 }}>
       <button
         className="btn-danger"
-        onClick={async () => {
+        onClick={isArchived ? undefined : (async () => {
           stopCapture();
           sessionStorage.setItem("liveTranslateIntentionalDisconnect", "1");
           fetch(`/api/sessions/${sessionId}/end`, { method: "POST" }).catch(() => {});
           room.disconnect();
           window.location.href = "/";
-        }}
-        style={{ width: "100%" }}
+        })}
+        disabled={isArchived}
+        style={{ width: "100%", opacity: isArchived ? 0.4 : 1, cursor: isArchived ? "not-allowed" : "pointer" }}
       >
         End broadcast
       </button>
