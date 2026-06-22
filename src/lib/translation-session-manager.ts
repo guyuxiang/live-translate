@@ -26,7 +26,15 @@ export interface SessionInfo {
   createdAt: Date;
   languageCount?: number;
   tokenCount?: number;
+  costUsd?: number;
+  status?: "active" | "ended" | "archived";
+  durationSeconds?: number;
+  listenerPeakCount?: number;
+  lastActivityAt?: Date | null;
 }
+
+const INPUT_PRICE_PER_TOKEN = 3.5 / 1_000_000;
+const OUTPUT_PRICE_PER_TOKEN = 21 / 1_000_000;
 
 class TranslationSessionManager {
   private static instance: TranslationSessionManager;
@@ -60,6 +68,11 @@ class TranslationSessionManager {
       createdAt,
       languageCount: 0,
       tokenCount: 0,
+      costUsd: 0,
+      status: "active",
+      durationSeconds: 0,
+      listenerPeakCount: 0,
+      lastActivityAt: createdAt,
     };
     this.sessions.set(sessionId, info);
     this.store.saveSession(info);
@@ -81,6 +94,11 @@ class TranslationSessionManager {
       createdAt: persisted.createdAt,
       languageCount: persisted.languageCount,
       tokenCount: persisted.tokenCount,
+      costUsd: persisted.costUsd,
+      status: persisted.status,
+      durationSeconds: persisted.durationSeconds,
+      listenerPeakCount: persisted.listenerPeakCount,
+      lastActivityAt: persisted.lastActivityAt,
     };
     this.sessions.set(sessionId, info);
     return info;
@@ -166,7 +184,17 @@ class TranslationSessionManager {
       });
     }
     const totalTokens = result.reduce((sum, item) => sum + item.inputTokens + item.outputTokens, 0);
-    this.store.updateSessionStats(sessionId, result.length, totalTokens);
+    const costUsd = result.reduce(
+      (sum, item) => sum + item.inputTokens * INPUT_PRICE_PER_TOKEN + item.outputTokens * OUTPUT_PRICE_PER_TOKEN,
+      0
+    );
+    const listenerCount = result.reduce((sum, item) => sum + item.subscriberCount, 0);
+    this.store.updateSessionStats(sessionId, {
+      languageCount: result.length,
+      tokenCount: totalTokens,
+      costUsd,
+      listenerCount,
+    });
     return result;
   }
 
@@ -246,6 +274,11 @@ class TranslationSessionManager {
         createdAt: session.createdAt,
         languageCount: session.languageCount,
         tokenCount: session.tokenCount,
+        costUsd: session.costUsd,
+        status: session.status,
+        durationSeconds: session.durationSeconds,
+        listenerPeakCount: session.listenerPeakCount,
+        lastActivityAt: session.lastActivityAt,
       };
       this.sessions.set(session.sessionId, info);
       return info;

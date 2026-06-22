@@ -330,8 +330,8 @@ function AttendeeView({
               "width=520,height=180,menubar=no,toolbar=no,location=no,status=no"
             )
           }
-          className="btn-ghost"
-          style={{ marginTop: 14, paddingLeft: 0 }}
+          className="btn btn-outline"
+          style={{ marginTop: 14, width: "100%" }}
         >
           Open caption mode
         </button>

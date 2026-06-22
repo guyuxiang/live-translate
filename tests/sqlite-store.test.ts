@@ -43,6 +43,11 @@ test("persists sessions and transcripts across store instances", () => {
       endedAt: null,
       languageCount: 0,
       tokenCount: 0,
+      costUsd: 0,
+      status: "active",
+      durationSeconds: 0,
+      listenerPeakCount: 0,
+      lastActivityAt: new Date("2026-06-22T08:00:00.000Z"),
     });
     assert.deepEqual(second.getTranscriptEntries("session-1", "zh-CN"), [
       {

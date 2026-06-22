@@ -3,6 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+function formatDuration(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.floor(totalSeconds || 0));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const remainderMinutes = minutes % 60;
+  const remainderSeconds = seconds % 60;
+  if (hours > 0) return `${hours}h ${remainderMinutes}m`;
+  if (minutes > 0) return `${minutes}m ${remainderSeconds}s`;
+  return `${remainderSeconds}s`;
+}
+
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -16,6 +27,11 @@ export default function Home() {
     createdAt: string;
     languageCount: number;
     tokenCount: number;
+    costUsd: number;
+    status: "active" | "ended" | "archived";
+    durationSeconds: number;
+    listenerPeakCount: number;
+    lastActivityAt: string;
   }>>([]);
 
   useEffect(() => {
@@ -39,12 +55,22 @@ export default function Home() {
           createdAt: string;
           languageCount?: number;
           tokenCount?: number;
+          costUsd?: number;
+          status?: "active" | "ended" | "archived";
+          durationSeconds?: number;
+          listenerPeakCount?: number;
+          lastActivityAt?: string;
         }) => ({
           sessionId: session.sessionId,
           name: session.name || session.sessionId,
           createdAt: session.createdAt,
           languageCount: session.languageCount ?? 0,
           tokenCount: session.tokenCount ?? 0,
+          costUsd: session.costUsd ?? 0,
+          status: session.status ?? "active",
+          durationSeconds: session.durationSeconds ?? 0,
+          listenerPeakCount: session.listenerPeakCount ?? 0,
+          lastActivityAt: session.lastActivityAt ?? session.createdAt,
         }));
         setRecentSessions(persistedSessions);
         localStorage.setItem("liveTranslateSessions", JSON.stringify(persistedSessions));
@@ -91,7 +117,18 @@ export default function Home() {
       const createdAt = new Date().toISOString();
       const name = sessionName.trim() || `Session ${new Date(createdAt).toLocaleString()}`;
       const nextSessions = [
-        { sessionId: data.sessionId, name, createdAt, languageCount: 0, tokenCount: 0 },
+        {
+          sessionId: data.sessionId,
+          name,
+          createdAt,
+          languageCount: 0,
+          tokenCount: 0,
+          costUsd: 0,
+          status: "active" as const,
+          durationSeconds: 0,
+          listenerPeakCount: 0,
+          lastActivityAt: createdAt,
+        },
         ...recentSessions.filter((s) => s.sessionId !== data.sessionId),
       ].slice(0, 8);
       localStorage.setItem("liveTranslateSessions", JSON.stringify(nextSessions));
@@ -162,12 +199,18 @@ export default function Home() {
                   cursor: "pointer",
                 }}
               >
-                <span>
+                <span style={{ minWidth: 0 }}>
                   <span style={{ display: "block", fontWeight: 500 }}>{session.name}</span>
                   <span className="mono">{new Date(session.createdAt).toLocaleString()}</span>
+                  <span className="mono" style={{ display: "block", marginTop: 4 }}>
+                    {session.status} · {formatDuration(session.durationSeconds)} · last {new Date(session.lastActivityAt).toLocaleString()}
+                  </span>
                 </span>
                 <span className="mono" style={{ textAlign: "right" }}>
-                  {session.languageCount} langs<br />{session.tokenCount.toLocaleString()} tokens
+                  {session.languageCount} {session.languageCount === 1 ? "language" : "languages"}<br />
+                  {session.tokenCount.toLocaleString()} tokens<br />
+                  ${session.costUsd.toFixed(4)}<br />
+                  peak {session.listenerPeakCount}
                 </span>
               </button>
             ))}
