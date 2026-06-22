@@ -321,20 +321,20 @@ function AttendeeView({
           >
             {isAudioMuted ? "🔇 Muted" : "🔊 On"}
           </button>
+          <button
+            onClick={() =>
+              window.open(
+                captionUrl,
+                "live-translate-caption",
+                "width=520,height=180,menubar=no,toolbar=no,location=no,status=no"
+              )
+            }
+            className="btn btn-outline"
+            style={{ marginLeft: 8, padding: "6px 14px", fontSize: 12, fontWeight: 500 }}
+          >
+            Caption mode
+          </button>
         </div>
-        <button
-          onClick={() =>
-            window.open(
-              captionUrl,
-              "live-translate-caption",
-              "width=520,height=180,menubar=no,toolbar=no,location=no,status=no"
-            )
-          }
-          className="btn btn-outline"
-          style={{ marginTop: 14, width: "100%" }}
-        >
-          Open caption mode
-        </button>
       </div>
 
       <hr className="rule" />
