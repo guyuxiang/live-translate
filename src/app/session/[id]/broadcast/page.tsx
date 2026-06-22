@@ -56,6 +56,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
   const remoteParticipants = useRemoteParticipants();
   const captureStreamRef = useRef<MediaStream | null>(null);
   const publishedTrackRef = useRef<LocalAudioTrack | null>(null);
+  const transcriptArchiveRef = useRef<TranscriptEntry[]>([]);
 
   // Count only real attendees, not translator bots
 
@@ -69,13 +70,20 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   useEffect(() => {
+    transcriptArchiveRef.current = transcriptArchive;
+  }, [transcriptArchive]);
+
+  useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isCapturing && translations.length === 0 && transcriptArchiveRef.current.length === 0) {
+        return;
+      }
       event.preventDefault();
       event.returnValue = "Broadcast is still running. Leave anyway?";
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, []);
+  }, [isCapturing, translations.length]);
 
   useEffect(() => {
     if (!room) return;
@@ -83,7 +91,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
     const encoder = new TextEncoder();
 
     const publishHistory = async () => {
-      const history = transcriptArchive.slice(-10);
+      const history = transcriptArchiveRef.current.slice(-10);
       if (history.length === 0) return;
       await room.localParticipant.publishData(
         encoder.encode(JSON.stringify({ type: "transcription-history", entries: history })),
@@ -107,7 +115,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
           const existing = prev.findIndex((item) => item.id === entry.id);
           const next = existing >= 0 ? [...prev] : [...prev, entry];
           if (existing >= 0) {
-            next[existing] = { ...next[existing], text: next[existing].text + entry.text, final: entry.final };
+            next[existing] = { ...next[existing], text: entry.text, final: entry.final, timestamp: entry.timestamp };
           }
           return next.slice(-500);
         });
@@ -122,7 +130,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
       room.off(RoomEvent.ParticipantConnected, publishHistory);
       window.clearInterval(interval);
     };
-  }, [room, transcriptArchive]);
+  }, [room]);
 
   useEffect(() => {
     if (!room) return;
@@ -452,6 +460,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
         className="btn-danger"
         onClick={() => {
           stopCapture();
+          sessionStorage.setItem("liveTranslateIntentionalDisconnect", "1");
           room.disconnect();
           window.location.href = "/";
         }}
@@ -533,6 +542,10 @@ export default function BroadcastPage({
           width: "100%",
         }}
         onDisconnected={() => {
+          if (sessionStorage.getItem("liveTranslateIntentionalDisconnect") === "1") {
+            sessionStorage.removeItem("liveTranslateIntentionalDisconnect");
+            return;
+          }
           setError("Reconnecting to LiveKit room…");
           window.setTimeout(() => window.location.reload(), 1500);
         }}
