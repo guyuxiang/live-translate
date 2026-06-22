@@ -110,6 +110,10 @@ class TranslationSessionManager {
     return info;
   }
 
+  invalidateSession(sessionId: string): void {
+    this.sessions.delete(sessionId);
+  }
+
   // Translation management
   async getOrCreate(
     sessionId: string,

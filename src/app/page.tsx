@@ -215,58 +215,60 @@ export default function Home() {
                   >
                     {session.name}
                   </button>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {session.status !== "archived" && (
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          await fetch(`/api/sessions/${session.sessionId}/archive`, { method: "POST" });
-                          setRecentSessions((prev) =>
-                            prev.map((s) =>
-                              s.sessionId === session.sessionId ? { ...s, status: "archived" as const } : s
-                            )
-                          );
-                        }}
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 500,
-                          padding: "2px 10px",
-                          borderRadius: 100,
-                          border: "1px solid var(--border)",
-                          background: "transparent",
-                          color: "var(--fg-tertiary)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Archive
-                      </button>
-                    )}
-                    <span style={{
-                      fontSize: 11,
-                      fontWeight: 500,
-                      padding: "2px 10px",
-                      borderRadius: 100,
-                      background: session.status === "active" ? "var(--success-soft, #e6f9ed)" : session.status === "ended" ? "var(--warning-soft, #fef3c7)" : "var(--bg-elevated)",
-                      color: session.status === "active" ? "var(--success, #16a34a)" : session.status === "ended" ? "var(--warning, #d97706)" : "var(--fg-tertiary)",
-                    }}>
-                      {session.status}
-                    </span>
-                  </div>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    padding: "2px 10px",
+                    borderRadius: 100,
+                    background: session.status === "active" ? "var(--success-soft, #e6f9ed)" : session.status === "ended" ? "var(--warning-soft, #fef3c7)" : "var(--bg-elevated)",
+                    color: session.status === "active" ? "var(--success, #16a34a)" : session.status === "ended" ? "var(--warning, #d97706)" : "var(--fg-tertiary)",
+                  }}>
+                    {session.status}
+                  </span>
                 </div>
                 <div className="mono" style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>
                   {new Date(session.createdAt).toLocaleString()}
                 </div>
-                <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                  <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
-                    {session.tokenCount.toLocaleString()} tokens
-                  </span>
-                  <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
-                    ${session.costUsd.toFixed(4)}
-                  </span>
-                  {session.durationSeconds > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
                     <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
-                      {formatDuration(session.durationSeconds)}
+                      {session.tokenCount.toLocaleString()} tokens
                     </span>
+                    <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
+                      ${session.costUsd.toFixed(4)}
+                    </span>
+                    {session.durationSeconds > 0 && (
+                      <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
+                        {formatDuration(session.durationSeconds)}
+                      </span>
+                    )}
+                  </div>
+                  {session.status !== "archived" && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await fetch(`/api/sessions/${session.sessionId}/archive`, { method: "POST" });
+                        setRecentSessions((prev) =>
+                          prev.map((s) =>
+                            s.sessionId === session.sessionId ? { ...s, status: "archived" as const } : s
+                          )
+                        );
+                      }}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 500,
+                        padding: "2px 10px",
+                        borderRadius: 100,
+                        border: "1px solid var(--border)",
+                        background: "transparent",
+                        color: "var(--fg-tertiary)",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                        marginLeft: 16,
+                      }}
+                    >
+                      Archive
+                    </button>
                   )}
                 </div>
               </div>
