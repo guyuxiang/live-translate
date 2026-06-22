@@ -67,6 +67,13 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
       if (current?.name) window.setTimeout(() => setSessionName(current.name), 0);
       localStorage.setItem("liveTranslateLastBroadcastSession", sessionId);
     } catch {}
+
+    fetch(`/api/sessions/${sessionId}/transcripts`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.entries)) setTranscriptArchive(data.entries);
+      })
+      .catch(() => {});
   }, [sessionId]);
 
   useEffect(() => {
@@ -111,6 +118,11 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
           final: data.final,
           timestamp: data.timestamp || Date.now(),
         };
+        fetch(`/api/sessions/${sessionId}/transcripts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(entry),
+        }).catch(() => {});
         setTranscriptArchive((prev) => {
           const existing = prev.findIndex((item) => item.id === entry.id);
           const next = existing >= 0 ? [...prev] : [...prev, entry];
@@ -130,7 +142,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
       room.off(RoomEvent.ParticipantConnected, publishHistory);
       window.clearInterval(interval);
     };
-  }, [room]);
+  }, [room, sessionId]);
 
   useEffect(() => {
     if (!room) return;

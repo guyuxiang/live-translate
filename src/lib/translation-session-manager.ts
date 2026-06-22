@@ -8,6 +8,7 @@
  */
 
 import { TranslationBridge, BridgeStatus } from "./translation-bridge";
+import { getSQLiteStore } from "./sqlite-store";
 
 export interface TranslationInfo {
   language: string;
@@ -36,6 +37,10 @@ class TranslationSessionManager {
 
   private constructor() {}
 
+  private get store() {
+    return getSQLiteStore();
+  }
+
   static getInstance(): TranslationSessionManager {
     if (!TranslationSessionManager.instance) {
       TranslationSessionManager.instance = new TranslationSessionManager();
@@ -53,12 +58,26 @@ class TranslationSessionManager {
       createdAt,
     };
     this.sessions.set(sessionId, info);
+    this.store.saveSession(info);
     console.log(`[SessionManager] Created session ${sessionId} for organizer ${organizerIdentity}`);
     return info;
   }
 
   getSession(sessionId: string): SessionInfo | undefined {
-    return this.sessions.get(sessionId);
+    const cached = this.sessions.get(sessionId);
+    if (cached) return cached;
+
+    const persisted = this.store.getSession(sessionId);
+    if (!persisted) return undefined;
+
+    const info: SessionInfo = {
+      sessionId: persisted.sessionId,
+      organizerIdentity: persisted.organizerIdentity,
+      name: persisted.name,
+      createdAt: persisted.createdAt,
+    };
+    this.sessions.set(sessionId, info);
+    return info;
   }
 
   // Translation management
@@ -140,6 +159,8 @@ class TranslationSessionManager {
         outputTokens: bridge.outputTokens,
       });
     }
+    const totalTokens = result.reduce((sum, item) => sum + item.inputTokens + item.outputTokens, 0);
+    this.store.updateSessionStats(sessionId, result.length, totalTokens);
     return result;
   }
 
@@ -203,13 +224,24 @@ class TranslationSessionManager {
     languageMap.clear();
     this.translations.delete(sessionId);
     this.sessions.delete(sessionId);
+    this.store.endSession(sessionId);
     console.log(
       `[SessionManager] Removed all bridges and session for ${sessionId}`
     );
   }
 
   getAllSessions(): SessionInfo[] {
-    return Array.from(this.sessions.values());
+    const persisted = this.store.getAllSessions();
+    return persisted.map((session) => {
+      const info: SessionInfo = {
+        sessionId: session.sessionId,
+        organizerIdentity: session.organizerIdentity,
+        name: session.name,
+        createdAt: session.createdAt,
+      };
+      this.sessions.set(session.sessionId, info);
+      return info;
+    });
   }
 }
 
