@@ -53,6 +53,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
   const [monitoringIdentity, setMonitoringIdentity] = useState<string | null>(null);
   const [transcriptArchive, setTranscriptArchive] = useState<TranscriptEntry[]>([]);
   const [sessionName, setSessionName] = useState(sessionId);
+  const [isArchived, setIsArchived] = useState(false);
   const remoteParticipants = useRemoteParticipants();
   const captureStreamRef = useRef<MediaStream | null>(null);
   const publishedTrackRef = useRef<LocalAudioTrack | null>(null);
@@ -72,6 +73,13 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data?.entries)) setTranscriptArchive(data.entries);
+      })
+      .catch(() => {});
+
+    fetch(`/api/sessions/${sessionId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.status === "archived") setIsArchived(true);
       })
       .catch(() => {});
   }, [sessionId]);
@@ -322,8 +330,8 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
         </div>
 
         <button
-          onClick={isCapturing ? stopCapture : startCapture}
-          disabled={capturing}
+          onClick={isArchived ? undefined : (isCapturing ? stopCapture : startCapture)}
+          disabled={capturing || isArchived}
           style={{
             width: "100%",
             padding: "14px 32px",
@@ -332,13 +340,15 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
             fontWeight: 500,
             border: isCapturing ? "1px solid var(--error)" : "none",
             borderRadius: 0,
-            background: isCapturing ? "transparent" : "var(--fg)",
-            color: isCapturing ? "var(--error)" : "var(--bg)",
-            cursor: capturing ? "wait" : "pointer",
+            background: isCapturing ? "transparent" : isArchived ? "var(--bg-elevated)" : "var(--fg)",
+            color: isCapturing ? "var(--error)" : isArchived ? "var(--fg-tertiary)" : "var(--bg)",
+            cursor: capturing || isArchived ? "not-allowed" : "pointer",
             opacity: capturing ? 0.6 : 1,
           }}
         >
-          {capturing
+          {isArchived
+            ? "Session archived"
+            : capturing
             ? "Starting..."
             : isCapturing
             ? "Stop capturing"

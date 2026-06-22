@@ -181,9 +181,8 @@ export default function Home() {
           <div className="enter-d3" style={{ marginTop: 48, textAlign: "left" }}>
             <span className="label" style={{ display: "block", marginBottom: 12 }}>Recent sessions</span>
             {recentSessions.map((session) => (
-              <button
+              <div
                 key={session.sessionId}
-                onClick={() => router.push(`/session/${session.sessionId}/broadcast`)}
                 style={{
                   width: "100%",
                   padding: "16px 18px",
@@ -196,29 +195,68 @@ export default function Home() {
                   background: "var(--bg-surface)",
                   color: "var(--fg)",
                   textAlign: "left",
-                  cursor: "pointer",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 600, fontSize: 15 }}>{session.name}</span>
-                  <span style={{
-                    fontSize: 11,
-                    fontWeight: 500,
-                    padding: "2px 10px",
-                    borderRadius: 100,
-                    background: session.status === "active" ? "var(--success-soft, #e6f9ed)" : "var(--bg-elevated)",
-                    color: session.status === "active" ? "var(--success, #16a34a)" : "var(--fg-tertiary)",
-                  }}>
-                    {session.status}
-                  </span>
+                  <button
+                    onClick={() => router.push(`/session/${session.sessionId}/broadcast`)}
+                    style={{
+                      fontWeight: 600,
+                      fontSize: 15,
+                      background: "none",
+                      border: "none",
+                      color: "var(--fg)",
+                      cursor: session.status === "archived" ? "not-allowed" : "pointer",
+                      padding: 0,
+                      textAlign: "left",
+                      opacity: session.status === "archived" ? 0.5 : 1,
+                    }}
+                    disabled={session.status === "archived"}
+                  >
+                    {session.name}
+                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {session.status !== "archived" && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await fetch(`/api/sessions/${session.sessionId}/archive`, { method: "POST" });
+                          setRecentSessions((prev) =>
+                            prev.map((s) =>
+                              s.sessionId === session.sessionId ? { ...s, status: "archived" as const } : s
+                            )
+                          );
+                        }}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 500,
+                          padding: "2px 10px",
+                          borderRadius: 100,
+                          border: "1px solid var(--border)",
+                          background: "transparent",
+                          color: "var(--fg-tertiary)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Archive
+                      </button>
+                    )}
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      padding: "2px 10px",
+                      borderRadius: 100,
+                      background: session.status === "active" ? "var(--success-soft, #e6f9ed)" : session.status === "ended" ? "var(--warning-soft, #fef3c7)" : "var(--bg-elevated)",
+                      color: session.status === "active" ? "var(--success, #16a34a)" : session.status === "ended" ? "var(--warning, #d97706)" : "var(--fg-tertiary)",
+                    }}>
+                      {session.status}
+                    </span>
+                  </div>
                 </div>
                 <div className="mono" style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>
                   {new Date(session.createdAt).toLocaleString()}
                 </div>
                 <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                  <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
-                    {session.languageCount} {session.languageCount === 1 ? "language" : "languages"}
-                  </span>
                   <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
                     {session.tokenCount.toLocaleString()} tokens
                   </span>
@@ -231,7 +269,7 @@ export default function Home() {
                     </span>
                   )}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
