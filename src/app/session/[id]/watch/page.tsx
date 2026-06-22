@@ -305,6 +305,7 @@ function AttendeeView({
             )}
           </div>
 
+          <div style={{ display: "flex", gap: 2 }}>
           <button
             onClick={() => setIsAudioMuted((m) => !m)}
             style={{
@@ -343,6 +344,7 @@ function AttendeeView({
           >
             📝 Caption mode
           </button>
+          </div>
         </div>
       </div>
 
