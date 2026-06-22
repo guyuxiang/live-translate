@@ -102,9 +102,8 @@ function AttendeeView({ sessionId }: { sessionId: string }) {
             const updated = [...prev];
             updated[existing] = {
               ...updated[existing],
-              text: data.text,
+              text: updated[existing].text + data.text,
               final: data.final,
-              timestamp: data.timestamp,
             };
             return updated;
           }

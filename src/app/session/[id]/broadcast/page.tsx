@@ -115,7 +115,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
           const existing = prev.findIndex((item) => item.id === entry.id);
           const next = existing >= 0 ? [...prev] : [...prev, entry];
           if (existing >= 0) {
-            next[existing] = { ...next[existing], text: entry.text, final: entry.final, timestamp: entry.timestamp };
+            next[existing] = { ...next[existing], text: next[existing].text + entry.text, final: entry.final };
           }
           return next.slice(-500);
         });
