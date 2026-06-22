@@ -206,12 +206,11 @@ export default function Home() {
                       background: "none",
                       border: "none",
                       color: "var(--fg)",
-                      cursor: session.status === "archived" ? "not-allowed" : "pointer",
+                      cursor: "pointer",
                       padding: 0,
                       textAlign: "left",
                       opacity: session.status === "archived" ? 0.5 : 1,
                     }}
-                    disabled={session.status === "archived"}
                   >
                     {session.name}
                   </button>
@@ -259,9 +258,9 @@ export default function Home() {
                         fontWeight: 500,
                         padding: "3px 12px",
                         borderRadius: 6,
-                        border: "1px solid var(--border)",
-                        background: "var(--bg-elevated)",
-                        color: "var(--fg-secondary)",
+                        border: "1px solid var(--error)",
+                        background: "var(--error-soft, #fde8e8)",
+                        color: "var(--error, #dc2626)",
                         cursor: "pointer",
                         flexShrink: 0,
                         marginLeft: 16,
