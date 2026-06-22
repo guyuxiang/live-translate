@@ -21,6 +21,7 @@ export interface TranslationInfo {
 export interface SessionInfo {
   sessionId: string;
   organizerIdentity: string;
+  name: string;
   createdAt: Date;
 }
 
@@ -43,11 +44,13 @@ class TranslationSessionManager {
   }
 
   // Session management
-  createSession(sessionId: string, organizerIdentity: string): SessionInfo {
+  createSession(sessionId: string, organizerIdentity: string, name?: string): SessionInfo {
+    const createdAt = new Date();
     const info: SessionInfo = {
       sessionId,
       organizerIdentity,
-      createdAt: new Date(),
+      name: name?.trim() || `Session ${createdAt.toLocaleString()}`,
+      createdAt,
     };
     this.sessions.set(sessionId, info);
     console.log(`[SessionManager] Created session ${sessionId} for organizer ${organizerIdentity}`);

@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const organizerName = body.organizerName || "organizer";
     const password = body.password || "";
+    const sessionName = typeof body.name === "string" ? body.name : undefined;
 
     if (password !== SESSION_PASSWORD) {
       return NextResponse.json(
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
     const organizerIdentity = `organizer-${organizerName}`;
 
     const manager = TranslationSessionManager.getInstance();
-    manager.createSession(sessionId, organizerIdentity);
+    manager.createSession(sessionId, organizerIdentity, sessionName);
 
     // Build the attendee join URL
     const protocol = req.headers.get("x-forwarded-proto") || "http";

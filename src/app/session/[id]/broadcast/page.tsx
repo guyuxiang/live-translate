@@ -3,13 +3,22 @@
 import { useEffect, useState, useCallback, useRef, use } from "react";
 import {
   LiveKitRoom,
+  RoomAudioRenderer,
   useLocalParticipant,
   useRoomContext,
   useRemoteParticipants,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { Track, LocalAudioTrack } from "livekit-client";
+import { Track, LocalAudioTrack, RoomEvent } from "livekit-client";
 import SessionQRCode from "@/components/SessionQRCode";
+
+interface TranscriptEntry {
+  id: string;
+  text: string;
+  language: string;
+  final: boolean;
+  timestamp: number;
+}
 
 interface TranslationInfo {
   language: string;
@@ -41,11 +50,123 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
   const [translations, setTranslations] = useState<TranslationInfo[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [monitoringIdentity, setMonitoringIdentity] = useState<string | null>(null);
+  const [transcriptArchive, setTranscriptArchive] = useState<TranscriptEntry[]>([]);
+  const [sessionName, setSessionName] = useState(sessionId);
   const remoteParticipants = useRemoteParticipants();
   const captureStreamRef = useRef<MediaStream | null>(null);
   const publishedTrackRef = useRef<LocalAudioTrack | null>(null);
 
   // Count only real attendees, not translator bots
+
+  useEffect(() => {
+    try {
+      const sessions = JSON.parse(localStorage.getItem("liveTranslateSessions") || "[]");
+      const current = sessions.find((s: { sessionId: string }) => s.sessionId === sessionId);
+      if (current?.name) window.setTimeout(() => setSessionName(current.name), 0);
+      localStorage.setItem("liveTranslateLastBroadcastSession", sessionId);
+    } catch {}
+  }, [sessionId]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "Broadcast is still running. Leave anyway?";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
+  useEffect(() => {
+    if (!room) return;
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
+
+    const publishHistory = async () => {
+      const history = transcriptArchive.slice(-10);
+      if (history.length === 0) return;
+      await room.localParticipant.publishData(
+        encoder.encode(JSON.stringify({ type: "transcription-history", entries: history })),
+        { reliable: true, topic: "transcription-history" }
+      );
+    };
+
+    const handleData = (payload: Uint8Array, _participant: unknown, _kind: unknown, topic?: string) => {
+      if (topic !== "transcription") return;
+      try {
+        const data = JSON.parse(decoder.decode(payload));
+        if (data.type !== "transcription") return;
+        const entry: TranscriptEntry = {
+          id: data.segmentId,
+          text: data.text,
+          language: data.language,
+          final: data.final,
+          timestamp: data.timestamp || Date.now(),
+        };
+        setTranscriptArchive((prev) => {
+          const existing = prev.findIndex((item) => item.id === entry.id);
+          const next = existing >= 0 ? [...prev] : [...prev, entry];
+          if (existing >= 0) {
+            next[existing] = { ...next[existing], text: next[existing].text + entry.text, final: entry.final };
+          }
+          return next.slice(-500);
+        });
+      } catch {}
+    };
+
+    room.on(RoomEvent.DataReceived, handleData);
+    room.on(RoomEvent.ParticipantConnected, publishHistory);
+    const interval = window.setInterval(publishHistory, 10000);
+    return () => {
+      room.off(RoomEvent.DataReceived, handleData);
+      room.off(RoomEvent.ParticipantConnected, publishHistory);
+      window.clearInterval(interval);
+    };
+  }, [room, transcriptArchive]);
+
+  useEffect(() => {
+    if (!room) return;
+    for (const [, participant] of room.remoteParticipants) {
+      for (const [, pub] of participant.trackPublications) {
+        if (pub.kind === Track.Kind.Audio) {
+          pub.setSubscribed(!!monitoringIdentity && participant.identity === monitoringIdentity);
+        }
+      }
+    }
+  }, [room, monitoringIdentity, remoteParticipants]);
+
+  useEffect(() => {
+    try {
+      const sessions = JSON.parse(localStorage.getItem("liveTranslateSessions") || "[]");
+      const totalTokens = translations.reduce((sum, item) => sum + item.inputTokens + item.outputTokens, 0);
+      const next = sessions.map((session: { sessionId: string; languageCount?: number; tokenCount?: number }) =>
+        session.sessionId === sessionId
+          ? { ...session, languageCount: translations.length, tokenCount: totalTokens }
+          : session
+      );
+      localStorage.setItem("liveTranslateSessions", JSON.stringify(next));
+    } catch {}
+  }, [sessionId, translations]);
+
+  const downloadTranscript = useCallback(() => {
+    const lines = [
+      `## Session: ${sessionName} (${new Date().toLocaleString()})`,
+      "",
+      ...transcriptArchive.map((entry) => {
+        const elapsed = Math.max(0, Math.floor((entry.timestamp - (transcriptArchive[0]?.timestamp || entry.timestamp)) / 1000));
+        const stamp = new Date(elapsed * 1000).toISOString().slice(11, 19);
+        return `[${stamp}] (${entry.language}) ${entry.text}`;
+      }),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${sessionName.replace(/[^a-z0-9-_]+/gi, "-") || sessionId}-transcript.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [sessionId, sessionName, transcriptArchive]);
+
   const listenerCount = remoteParticipants.filter(
     (p) => !p.identity.startsWith("translator-")
   ).length;
@@ -66,10 +187,23 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   useEffect(() => {
-    fetchTranslations();
+    window.setTimeout(fetchTranslations, 0);
     const interval = setInterval(fetchTranslations, 3000);
     return () => clearInterval(interval);
   }, [fetchTranslations]);
+
+  const stopCapture = useCallback(() => {
+    if (publishedTrackRef.current) {
+      localParticipant.unpublishTrack(publishedTrackRef.current);
+      publishedTrackRef.current.stop();
+      publishedTrackRef.current = null;
+    }
+    if (captureStreamRef.current) {
+      captureStreamRef.current.getTracks().forEach((t) => t.stop());
+      captureStreamRef.current = null;
+    }
+    setIsCapturing(false);
+  }, [localParticipant]);
 
   const startCapture = useCallback(async () => {
     try {
@@ -110,20 +244,9 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
       console.error("Failed to capture screen audio:", err);
       setCapturing(false);
     }
-  }, [localParticipant]);
+  }, [localParticipant, stopCapture]);
 
-  const stopCapture = useCallback(() => {
-    if (publishedTrackRef.current) {
-      localParticipant.unpublishTrack(publishedTrackRef.current);
-      publishedTrackRef.current.stop();
-      publishedTrackRef.current = null;
-    }
-    if (captureStreamRef.current) {
-      captureStreamRef.current.getTracks().forEach((t) => t.stop());
-      captureStreamRef.current = null;
-    }
-    setIsCapturing(false);
-  }, [localParticipant]);
+
 
   // Cleanup on unmount
   useEffect(() => {
@@ -144,6 +267,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
         <h1 className="display display-lg" style={{ marginBottom: 8 }}>
           Broadcasting
         </h1>
+        <p style={{ marginBottom: 4, fontWeight: 500 }}>{sessionName}</p>
         <p className="mono">{sessionId}</p>
       </div>
 
@@ -210,7 +334,7 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
           }}
         >
           Select a browser tab or window with audio playback.
-          Make sure "Share tab audio" is checked.
+          Make sure &quot;Share tab audio&quot; is checked.
         </p>
       </div>
 
@@ -274,6 +398,13 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button
+                  onClick={() => setMonitoringIdentity((current) => current === t.translatorIdentity ? null : t.translatorIdentity)}
+                  title={`Monitor ${LANG_NAMES[t.language] || t.language} audio`}
+                  style={{ border: "1px solid var(--border)", background: monitoringIdentity === t.translatorIdentity ? "var(--success-soft)" : "transparent", cursor: "pointer", padding: "4px 8px" }}
+                >
+                  👂
+                </button>
                 <span className="lang-meta">
                   {t.subscriberCount} listener{t.subscriberCount !== 1 ? "s" : ""}
                 </span>
@@ -304,6 +435,14 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
         </div>
       );
       })()}
+
+      <hr className="rule" />
+
+      <div style={{ padding: "28px 0" }}>
+        <button className="btn btn-outline" onClick={downloadTranscript} disabled={transcriptArchive.length === 0} style={{ width: "100%", opacity: transcriptArchive.length === 0 ? 0.5 : 1 }}>
+          Download complete transcript ({transcriptArchive.length})
+        </button>
+      </div>
 
       <hr className="rule" />
 
@@ -386,6 +525,7 @@ export default function BroadcastPage({
         audio={false}
         token={token}
         serverUrl={livekitUrl}
+        connectOptions={{ autoSubscribe: false }}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -393,10 +533,11 @@ export default function BroadcastPage({
           width: "100%",
         }}
         onDisconnected={() => {
-          setError("Disconnected from LiveKit room. Please check your credentials or network connection.");
+          setError("Reconnecting to LiveKit room…");
+          window.setTimeout(() => window.location.reload(), 1500);
         }}
       >
-
+        <RoomAudioRenderer />
         <BroadcastControls sessionId={sessionId} />
       </LiveKitRoom>
     </div>

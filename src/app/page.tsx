@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -8,11 +8,28 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [password, setPassword] = useState("");
+  const [sessionName, setSessionName] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [recentSessions, setRecentSessions] = useState<Array<{
+    sessionId: string;
+    name: string;
+    createdAt: string;
+    languageCount: number;
+    tokenCount: number;
+  }>>([]);
+
+  useEffect(() => {
+    try {
+      window.setTimeout(() => setRecentSessions(JSON.parse(localStorage.getItem("liveTranslateSessions") || "[]")), 0);
+    } catch {
+      window.setTimeout(() => setRecentSessions([]), 0);
+    }
+  }, []);
 
   function openPasswordDialog() {
     setShowPasswordDialog(true);
     setPassword("");
+    setSessionName("");
     setPasswordError("");
   }
 
@@ -35,7 +52,7 @@ export default function Home() {
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizerName: "host", password }),
+        body: JSON.stringify({ organizerName: "host", password, name: sessionName }),
       });
       const data = await res.json();
 
@@ -45,6 +62,14 @@ export default function Home() {
         return;
       }
 
+      const createdAt = new Date().toISOString();
+      const name = sessionName.trim() || `Session ${new Date(createdAt).toLocaleString()}`;
+      const nextSessions = [
+        { sessionId: data.sessionId, name, createdAt, languageCount: 0, tokenCount: 0 },
+        ...recentSessions.filter((s) => s.sessionId !== data.sessionId),
+      ].slice(0, 8);
+      localStorage.setItem("liveTranslateSessions", JSON.stringify(nextSessions));
+      localStorage.setItem("liveTranslateLastBroadcastSession", data.sessionId);
       closePasswordDialog();
       router.push(`/session/${data.sessionId}/broadcast`);
     } catch (err) {
@@ -88,6 +113,40 @@ export default function Home() {
             )}
           </button>
         </div>
+
+        {recentSessions.length > 0 && (
+          <div className="enter-d3" style={{ marginTop: 48, textAlign: "left" }}>
+            <span className="label" style={{ display: "block", marginBottom: 12 }}>Recent sessions</span>
+            <hr className="rule" />
+            {recentSessions.map((session) => (
+              <button
+                key={session.sessionId}
+                onClick={() => router.push(`/session/${session.sessionId}/broadcast`)}
+                style={{
+                  width: "100%",
+                  padding: "14px 0",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  border: "none",
+                  borderBottom: "1px solid var(--border)",
+                  background: "transparent",
+                  color: "var(--fg)",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <span>
+                  <span style={{ display: "block", fontWeight: 500 }}>{session.name}</span>
+                  <span className="mono">{new Date(session.createdAt).toLocaleString()}</span>
+                </span>
+                <span className="mono" style={{ textAlign: "right" }}>
+                  {session.languageCount} langs<br />{session.tokenCount.toLocaleString()} tokens
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Steps */}
         <div
@@ -173,6 +232,25 @@ export default function Home() {
             >
               A password is required to create a session
             </p>
+            <input
+              type="text"
+              placeholder="Session name (optional)"
+              value={sessionName}
+              onChange={(e) => setSessionName(e.target.value)}
+              style={{
+                display: "block",
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+                background: "var(--bg-elevated)",
+                color: "var(--fg)",
+                fontSize: 15,
+                outline: "none",
+                textAlign: "center",
+                marginBottom: 12,
+              }}
+            />
             <input
               type="password"
               placeholder="Password"
