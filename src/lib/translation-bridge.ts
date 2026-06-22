@@ -478,22 +478,10 @@ export class TranslationBridge {
   private async subscribeToOrganizer(): Promise<void> {
     if (!this.room) return;
 
-    // Find the organizer participant and subscribe to their audio
-    const participants = this.room.remoteParticipants;
-
-    for (const [, participant] of participants) {
-      if (participant.identity === this.organizerIdentity) {
-        this.subscribeToParticipantAudio(participant);
-        return;
-      }
-    }
-
-    // If organizer hasn't joined yet, wait for them
-    console.log(
-      `[TranslationBridge:${this.targetLanguage}] Waiting for organizer ${this.organizerIdentity}...`
-    );
-
-    // Listen for the organizer to publish their track
+    // Always listen for future organizer audio tracks. This is required when a
+    // broadcaster reopens a historical session and starts capturing again: the
+    // organizer participant may already be in the room when the bridge starts,
+    // but the new audio publication appears later.
     this.room.on(
       RoomEvent.TrackPublished,
       (
@@ -509,7 +497,7 @@ export class TranslationBridge {
       }
     );
 
-    // Once subscribed, pipe to Gemini
+    // Once subscribed, pipe to Gemini.
     this.room.on(
       RoomEvent.TrackSubscribed,
       (
@@ -525,6 +513,23 @@ export class TranslationBridge {
         }
       }
     );
+
+    // Find the organizer participant and subscribe to any audio they already
+    // published before this bridge joined.
+    const participants = this.room.remoteParticipants;
+
+    for (const [, participant] of participants) {
+      if (participant.identity === this.organizerIdentity) {
+        this.subscribeToParticipantAudio(participant);
+        return;
+      }
+    }
+
+    // If organizer hasn't joined yet, the TrackPublished listener above will
+    // subscribe when they start capturing.
+    console.log(
+      `[TranslationBridge:${this.targetLanguage}] Waiting for organizer ${this.organizerIdentity}...`
+    );
   }
 
   /**
@@ -535,27 +540,10 @@ export class TranslationBridge {
   ): void {
     for (const [, publication] of participant.trackPublications) {
       if (publication.kind === TrackKind.KIND_AUDIO) {
-        // Manually subscribe — this triggers TrackSubscribed event
+        // Manually subscribe — the shared TrackSubscribed listener pipes it to Gemini.
         publication.setSubscribed(true);
       }
     }
-
-    // Also listen for TrackSubscribed to pipe to Gemini
-    this.room!.on(
-      RoomEvent.TrackSubscribed,
-      (
-        track: RemoteAudioTrack,
-        pub: RemoteTrackPublication,
-        p: RemoteParticipant
-      ) => {
-        if (
-          p.identity === this.organizerIdentity &&
-          pub.kind === TrackKind.KIND_AUDIO
-        ) {
-          this.pipeTrackToGemini(track);
-        }
-      }
-    );
   }
 
   private pipeTrackToGemini(track: RemoteAudioTrack): void {
