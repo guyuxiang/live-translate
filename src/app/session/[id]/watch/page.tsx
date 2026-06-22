@@ -329,8 +329,17 @@ function AttendeeView({
                 "width=520,height=180,menubar=no,toolbar=no,location=no,status=no"
               )
             }
-            className="btn btn-outline"
-            style={{ marginLeft: 8, padding: "6px 14px", fontSize: 12, fontWeight: 500 }}
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 12,
+              fontWeight: 500,
+              padding: "6px 14px",
+              border: "1px solid var(--border)",
+              borderRadius: 0,
+              background: "transparent",
+              color: "var(--fg-secondary)",
+              cursor: "pointer",
+            }}
           >
             Caption mode
           </button>

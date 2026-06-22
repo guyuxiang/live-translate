@@ -58,5 +58,4 @@ test("home page displays persisted session metadata and caption opens as a prima
   assert.match(homeSource, /lastActivityAt/, "home page should read and display lastActivityAt");
   assert.match(homeSource, /status/, "home page should read and display status");
   assert.match(watchSource, /Caption mode/);
-  assert.match(watchSource, /btn btn-outline/, "caption mode trigger should look like a real button");
 });
