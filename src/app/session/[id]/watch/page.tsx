@@ -341,7 +341,7 @@ function AttendeeView({
               cursor: "pointer",
             }}
           >
-            Caption mode
+            📝 Caption mode
           </button>
         </div>
       </div>

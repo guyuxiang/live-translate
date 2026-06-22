@@ -180,38 +180,57 @@ export default function Home() {
         {recentSessions.length > 0 && (
           <div className="enter-d3" style={{ marginTop: 48, textAlign: "left" }}>
             <span className="label" style={{ display: "block", marginBottom: 12 }}>Recent sessions</span>
-            <hr className="rule" />
             {recentSessions.map((session) => (
               <button
                 key={session.sessionId}
                 onClick={() => router.push(`/session/${session.sessionId}/broadcast`)}
                 style={{
                   width: "100%",
-                  padding: "14px 0",
+                  padding: "16px 18px",
+                  marginBottom: 10,
                   display: "flex",
-                  justifyContent: "space-between",
-                  gap: 16,
-                  border: "none",
-                  borderBottom: "1px solid var(--border)",
-                  background: "transparent",
+                  flexDirection: "column",
+                  gap: 8,
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  background: "var(--bg-surface)",
                   color: "var(--fg)",
                   textAlign: "left",
                   cursor: "pointer",
                 }}
               >
-                <span style={{ minWidth: 0 }}>
-                  <span style={{ display: "block", fontWeight: 500 }}>{session.name}</span>
-                  <span className="mono">{new Date(session.createdAt).toLocaleString()}</span>
-                  <span className="mono" style={{ display: "block", marginTop: 4 }}>
-                    {session.status} · {formatDuration(session.durationSeconds)} · last {new Date(session.lastActivityAt).toLocaleString()}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 600, fontSize: 15 }}>{session.name}</span>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    padding: "2px 10px",
+                    borderRadius: 100,
+                    background: session.status === "active" ? "var(--success-soft, #e6f9ed)" : "var(--bg-elevated)",
+                    color: session.status === "active" ? "var(--success, #16a34a)" : "var(--fg-tertiary)",
+                  }}>
+                    {session.status}
                   </span>
-                </span>
-                <span className="mono" style={{ textAlign: "right" }}>
-                  {session.languageCount} {session.languageCount === 1 ? "language" : "languages"}<br />
-                  {session.tokenCount.toLocaleString()} tokens<br />
-                  ${session.costUsd.toFixed(4)}<br />
-                  peak {session.listenerPeakCount}
-                </span>
+                </div>
+                <div className="mono" style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>
+                  {new Date(session.createdAt).toLocaleString()}
+                </div>
+                <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                  <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
+                    {session.languageCount} {session.languageCount === 1 ? "language" : "languages"}
+                  </span>
+                  <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
+                    {session.tokenCount.toLocaleString()} tokens
+                  </span>
+                  <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
+                    ${session.costUsd.toFixed(4)}
+                  </span>
+                  {session.durationSeconds > 0 && (
+                    <span className="mono" style={{ fontSize: 13, color: "var(--fg-secondary)" }}>
+                      {formatDuration(session.durationSeconds)}
+                    </span>
+                  )}
+                </div>
               </button>
             ))}
           </div>

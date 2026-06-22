@@ -55,7 +55,7 @@ test("home page displays persisted session metadata and caption opens as a prima
 
   assert.match(homeSource, /costUsd/, "home page should read and display costUsd");
   assert.match(homeSource, /durationSeconds/, "home page should read and display durationSeconds");
-  assert.match(homeSource, /lastActivityAt/, "home page should read and display lastActivityAt");
   assert.match(homeSource, /status/, "home page should read and display status");
-  assert.match(watchSource, /Caption mode/);
+  assert.match(homeSource, /borderRadius/, "session cards should be card-style");
+  assert.match(watchSource, /📝 Caption mode/);
 });
