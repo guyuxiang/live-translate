@@ -12,6 +12,8 @@ export interface StoredSession {
   endedAt?: Date | null;
   languageCount?: number;
   tokenCount?: number;
+  inputTokenCount?: number;
+  outputTokenCount?: number;
   costUsd?: number;
   status?: SessionStatus;
   durationSeconds?: number;
@@ -22,6 +24,8 @@ export interface StoredSession {
 export interface SessionStatsUpdate {
   languageCount: number;
   tokenCount: number;
+  inputTokenCount?: number;
+  outputTokenCount?: number;
   costUsd?: number;
   listenerCount?: number;
   lastActivityAt?: Date;
@@ -54,6 +58,8 @@ export class SQLiteStore {
         ended_at TEXT,
         language_count INTEGER NOT NULL DEFAULT 0,
         token_count INTEGER NOT NULL DEFAULT 0,
+        input_token_count INTEGER NOT NULL DEFAULT 0,
+        output_token_count INTEGER NOT NULL DEFAULT 0,
         cost_usd REAL NOT NULL DEFAULT 0,
         status TEXT NOT NULL DEFAULT 'active',
         duration_seconds INTEGER NOT NULL DEFAULT 0,
@@ -86,6 +92,8 @@ export class SQLiteStore {
       ["duration_seconds", "ALTER TABLE sessions ADD COLUMN duration_seconds INTEGER NOT NULL DEFAULT 0"],
       ["listener_peak_count", "ALTER TABLE sessions ADD COLUMN listener_peak_count INTEGER NOT NULL DEFAULT 0"],
       ["last_activity_at", "ALTER TABLE sessions ADD COLUMN last_activity_at TEXT"],
+      ["input_token_count", "ALTER TABLE sessions ADD COLUMN input_token_count INTEGER NOT NULL DEFAULT 0"],
+      ["output_token_count", "ALTER TABLE sessions ADD COLUMN output_token_count INTEGER NOT NULL DEFAULT 0"],
     ];
 
     for (const [name, sql] of migrations) {
@@ -99,9 +107,10 @@ export class SQLiteStore {
     this.db.prepare(`
       INSERT INTO sessions (
         session_id, organizer_identity, name, created_at, ended_at, language_count,
-        token_count, cost_usd, status, duration_seconds, listener_peak_count, last_activity_at
+        token_count, input_token_count, output_token_count, cost_usd, status, duration_seconds,
+        listener_peak_count, last_activity_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(session_id) DO UPDATE SET
         organizer_identity = excluded.organizer_identity,
         name = excluded.name,
@@ -109,6 +118,8 @@ export class SQLiteStore {
         ended_at = excluded.ended_at,
         language_count = excluded.language_count,
         token_count = excluded.token_count,
+        input_token_count = excluded.input_token_count,
+        output_token_count = excluded.output_token_count,
         cost_usd = excluded.cost_usd,
         status = excluded.status,
         duration_seconds = excluded.duration_seconds,
@@ -122,6 +133,8 @@ export class SQLiteStore {
       session.endedAt ? session.endedAt.toISOString() : null,
       session.languageCount ?? 0,
       session.tokenCount ?? 0,
+      session.inputTokenCount ?? 0,
+      session.outputTokenCount ?? 0,
       session.costUsd ?? 0,
       session.status ?? (session.endedAt ? "ended" : "active"),
       durationSeconds,
@@ -132,8 +145,9 @@ export class SQLiteStore {
 
   getSession(sessionId: string): StoredSession | undefined {
     const row = this.db.prepare(`
-      SELECT session_id, organizer_identity, name, created_at, ended_at, language_count, token_count,
-        cost_usd, status, duration_seconds, listener_peak_count, last_activity_at
+      SELECT session_id, organizer_identity, name, created_at, ended_at, language_count,
+        token_count, input_token_count, output_token_count, cost_usd, status, duration_seconds,
+        listener_peak_count, last_activity_at
       FROM sessions
       WHERE session_id = ?
     `).get(sessionId) as SessionRow | undefined;
@@ -142,8 +156,9 @@ export class SQLiteStore {
 
   getAllSessions(limit = 50): StoredSession[] {
     const rows = this.db.prepare(`
-      SELECT session_id, organizer_identity, name, created_at, ended_at, language_count, token_count,
-        cost_usd, status, duration_seconds, listener_peak_count, last_activity_at
+      SELECT session_id, organizer_identity, name, created_at, ended_at, language_count,
+        token_count, input_token_count, output_token_count, cost_usd, status, duration_seconds,
+        listener_peak_count, last_activity_at
       FROM sessions
       ORDER BY datetime(created_at) DESC
       LIMIT ?
@@ -165,6 +180,8 @@ export class SQLiteStore {
       UPDATE sessions
       SET language_count = ?,
           token_count = ?,
+          input_token_count = ?,
+          output_token_count = ?,
           cost_usd = ?,
           duration_seconds = ?,
           listener_peak_count = ?,
@@ -173,6 +190,8 @@ export class SQLiteStore {
     `).run(
       stats.languageCount,
       stats.tokenCount,
+      stats.inputTokenCount ?? existing?.inputTokenCount ?? 0,
+      stats.outputTokenCount ?? existing?.outputTokenCount ?? 0,
       stats.costUsd ?? existing?.costUsd ?? 0,
       durationSeconds,
       listenerPeakCount,
@@ -270,6 +289,8 @@ type SessionRow = {
   ended_at: string | null;
   language_count: number;
   token_count: number;
+  input_token_count: number;
+  output_token_count: number;
   cost_usd: number;
   status: SessionStatus;
   duration_seconds: number;
@@ -294,6 +315,8 @@ function rowToSession(row: SessionRow): StoredSession {
     endedAt: row.ended_at ? new Date(row.ended_at) : null,
     languageCount: row.language_count,
     tokenCount: row.token_count,
+    inputTokenCount: row.input_token_count,
+    outputTokenCount: row.output_token_count,
     costUsd: row.cost_usd,
     status: row.status,
     durationSeconds: row.duration_seconds,

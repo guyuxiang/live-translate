@@ -43,6 +43,8 @@ test("persists sessions and transcripts across store instances", () => {
       endedAt: null,
       languageCount: 0,
       tokenCount: 0,
+      inputTokenCount: 0,
+      outputTokenCount: 0,
       costUsd: 0,
       status: "active",
       durationSeconds: 0,

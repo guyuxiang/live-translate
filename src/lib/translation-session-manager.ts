@@ -26,6 +26,8 @@ export interface SessionInfo {
   createdAt: Date;
   languageCount?: number;
   tokenCount?: number;
+  inputTokenCount?: number;
+  outputTokenCount?: number;
   costUsd?: number;
   status?: "active" | "ended" | "archived";
   durationSeconds?: number;
@@ -68,6 +70,8 @@ class TranslationSessionManager {
       createdAt,
       languageCount: 0,
       tokenCount: 0,
+      inputTokenCount: 0,
+      outputTokenCount: 0,
       costUsd: 0,
       status: "active",
       durationSeconds: 0,
@@ -94,6 +98,8 @@ class TranslationSessionManager {
       createdAt: persisted.createdAt,
       languageCount: persisted.languageCount,
       tokenCount: persisted.tokenCount,
+      inputTokenCount: persisted.inputTokenCount,
+      outputTokenCount: persisted.outputTokenCount,
       costUsd: persisted.costUsd,
       status: persisted.status,
       durationSeconds: persisted.durationSeconds,
@@ -183,7 +189,9 @@ class TranslationSessionManager {
         outputTokens: bridge.outputTokens,
       });
     }
-    const totalTokens = result.reduce((sum, item) => sum + item.inputTokens + item.outputTokens, 0);
+    const totalInputTokens = result.reduce((sum, item) => sum + item.inputTokens, 0);
+    const totalOutputTokens = result.reduce((sum, item) => sum + item.outputTokens, 0);
+    const totalTokens = totalInputTokens + totalOutputTokens;
     const costUsd = result.reduce(
       (sum, item) => sum + item.inputTokens * INPUT_PRICE_PER_TOKEN + item.outputTokens * OUTPUT_PRICE_PER_TOKEN,
       0
@@ -192,6 +200,8 @@ class TranslationSessionManager {
     this.store.updateSessionStats(sessionId, {
       languageCount: result.length,
       tokenCount: totalTokens,
+      inputTokenCount: totalInputTokens,
+      outputTokenCount: totalOutputTokens,
       costUsd,
       listenerCount,
     });
@@ -274,6 +284,8 @@ class TranslationSessionManager {
         createdAt: session.createdAt,
         languageCount: session.languageCount,
         tokenCount: session.tokenCount,
+        inputTokenCount: session.inputTokenCount,
+        outputTokenCount: session.outputTokenCount,
         costUsd: session.costUsd,
         status: session.status,
         durationSeconds: session.durationSeconds,
