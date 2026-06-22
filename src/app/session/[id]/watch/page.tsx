@@ -10,6 +10,7 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track, RoomEvent } from "livekit-client";
+import { useSearchParams } from "next/navigation";
 import LanguageSelector from "./components/LanguageSelector";
 
 interface TranscriptEntry {
@@ -20,14 +21,24 @@ interface TranscriptEntry {
   timestamp: number;
 }
 
-function AttendeeView({ sessionId }: { sessionId: string }) {
+function AttendeeView({
+  sessionId,
+  captionMode = false,
+  initialLanguage = "original",
+  initialTranslatorIdentity = null,
+}: {
+  sessionId: string;
+  captionMode?: boolean;
+  initialLanguage?: string;
+  initialTranslatorIdentity?: string | null;
+}) {
   const room = useRoomContext();
-  const [currentLanguage, setCurrentLanguage] = useState("original");
+  const [currentLanguage, setCurrentLanguage] = useState(initialLanguage);
   const [translatorIdentity, setTranslatorIdentity] = useState<string | null>(
-    null
+    initialTranslatorIdentity
   );
   const [isReceivingAudio, setIsReceivingAudio] = useState(false);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(captionMode);
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [sessionName, setSessionName] = useState(sessionId);
@@ -187,7 +198,7 @@ function AttendeeView({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     const handleBeforeUnload = () => {
       // Use sendBeacon for reliable fire-and-forget during page unload
-      if (currentLanguageRef.current && currentLanguageRef.current !== "original") {
+      if (!captionMode && currentLanguageRef.current && currentLanguageRef.current !== "original") {
         const body = JSON.stringify({
           sessionId,
           targetLanguage: currentLanguageRef.current,
@@ -205,7 +216,7 @@ function AttendeeView({ sessionId }: { sessionId: string }) {
       // Also fire on React unmount (e.g. navigation away)
       handleBeforeUnload();
     };
-  }, [sessionId]);
+  }, [sessionId, captionMode]);
 
   const handleLanguageChange = useCallback(
     (langCode: string, newTranslatorIdentity: string | null) => {
@@ -229,6 +240,28 @@ function AttendeeView({ sessionId }: { sessionId: string }) {
   );
 
   const isConnected = organizerParticipant !== undefined;
+  const latestTranscript = transcripts.at(-1)?.text || "";
+  const captionUrl = `/session/${sessionId}/watch?mode=caption${
+    currentLanguage !== "original"
+      ? `&lang=${encodeURIComponent(currentLanguage)}&translator=${encodeURIComponent(
+          translatorIdentity || ""
+        )}`
+      : ""
+  }`;
+
+  if (captionMode) {
+    return (
+      <div className="caption-shell">
+        <p className="caption-line">
+          {latestTranscript ||
+            (currentLanguage === "original"
+              ? "Select a language in the normal listener page first."
+              : "Waiting for translated speech…")}
+        </p>
+        <div ref={transcriptEndRef} />
+      </div>
+    );
+  }
 
   return (
     <div className="container enter">
@@ -289,6 +322,19 @@ function AttendeeView({ sessionId }: { sessionId: string }) {
             {isAudioMuted ? "🔇 Muted" : "🔊 On"}
           </button>
         </div>
+        <button
+          onClick={() =>
+            window.open(
+              captionUrl,
+              "live-translate-caption",
+              "width=520,height=180,menubar=no,toolbar=no,location=no,status=no"
+            )
+          }
+          className="btn-ghost"
+          style={{ marginTop: 14, paddingLeft: 0 }}
+        >
+          Open caption mode
+        </button>
       </div>
 
       <hr className="rule" />
@@ -369,10 +415,14 @@ export default function WatchPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: sessionId } = use(params);
+  const searchParams = useSearchParams();
+  const captionMode = searchParams.get("mode") === "caption";
+  const initialLanguage = searchParams.get("lang") || "original";
+  const initialTranslatorIdentity = searchParams.get("translator");
   const [token, setToken] = useState("");
   const [livekitUrl, setLivekitUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [started, setStarted] = useState(false);
+  const [started, setStarted] = useState(captionMode);
 
   useEffect(() => {
     async function fetchToken() {
@@ -447,7 +497,7 @@ export default function WatchPage({
   }
 
   return (
-    <div className="page page-top">
+    <div className={captionMode ? "page caption-page" : "page page-top"}>
       <LiveKitRoom
         key={token}
         video={false}
@@ -467,7 +517,12 @@ export default function WatchPage({
         }}
       >
         <RoomAudioRenderer />
-        <AttendeeView sessionId={sessionId} />
+        <AttendeeView
+          sessionId={sessionId}
+          captionMode={captionMode}
+          initialLanguage={initialLanguage}
+          initialTranslatorIdentity={initialTranslatorIdentity}
+        />
       </LiveKitRoom>
     </div>
   );
