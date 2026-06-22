@@ -470,9 +470,10 @@ function BroadcastControls({ sessionId }: { sessionId: string }) {
       <div style={{ paddingTop: 28 }}>
       <button
         className="btn-danger"
-        onClick={() => {
+        onClick={async () => {
           stopCapture();
           sessionStorage.setItem("liveTranslateIntentionalDisconnect", "1");
+          fetch(`/api/sessions/${sessionId}/end`, { method: "POST" }).catch(() => {});
           room.disconnect();
           window.location.href = "/";
         }}
